@@ -69,9 +69,6 @@ for resource in resources:
 		download.close()
 		print "Downloaded!"
 
-
-content = content.replace("=\"/", "=\""+url+"/")
-
 file.write(content)
 
 print "Cloned "+url+" !"
