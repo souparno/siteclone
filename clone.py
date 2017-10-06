@@ -52,7 +52,10 @@ for resource in resources:
 		except IOError:
 			pass
 		try:
-			download = open("clone/"+resource, "w")
+			if "?" in resource:
+				download = open("clone/"+resource.split("?")[len(resource.split("?")) - 2], "w")
+			else:
+				download = open("clone/"+resource, "w")
 			print url+"/"+resource
 			dContent = urllib2.urlopen(url+"/"+resource).read()
 		except urllib2.URLError as e:
