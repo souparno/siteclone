@@ -7,7 +7,7 @@ import re
 
 socket.setdefaulttimeout(15)
 
-dataTypesToDownload = [".jpg", ".png", ".ico", ".css", ".js"]
+dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html"]
 
 if len(sys.argv) == 1:
 	url = raw_input("URL of site to clone: ")
