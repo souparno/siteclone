@@ -14,14 +14,19 @@ if len(sys.argv) == 1:
 else:
 	url = sys.argv[1]
 
+if len(sys.argv) == 2:
+        pathbase = raw_input("Directory name of site where to clone it: ")
+else:
+        pathbase = sys.argv[2]
+
 if "http://" not in url and "https://" not in url:
 	url = "http://"+url
 
 try:
-	os.mkdir("clone")
+	os.mkdir(pathbase)
 except OSError:
 	pass
-file = open("clone/index.html", "w")
+file = open(pathbase + "/index.html", "w")
 try:
 	content = urllib2.urlopen(url).read()
 except urllib2.URLError as e:
@@ -43,7 +48,7 @@ for resource in resources:
 			
 			if len(path) != 1:
 				path.pop(len(path) - 1)
-				trail = "./clone/"
+				trail = "./" + pathbase + "/"
 				for folder in path:
 					trail += folder+"/"
 					try:
@@ -54,9 +59,9 @@ for resource in resources:
 			pass
 		try:
 			if "?" in resource:
-				download = open("clone/"+resource.split("?")[len(resource.split("?")) - 2], "w")
+				download = open(pathbase + "/"+resource.split("?")[len(resource.split("?")) - 2], "w")
 			else:
-				download = open("clone/"+resource, "w")
+				download = open(pathbase + "/"+resource, "w")
 			print url+"/"+resource
 			dContent = urllib2.urlopen(url+"/"+resource).read()
 		except urllib2.URLError as e:
