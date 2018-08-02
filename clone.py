@@ -3,6 +3,7 @@ import urllib2
 import sys
 import socket
 import os
+import re
 
 socket.setdefaulttimeout(15)
 
@@ -27,14 +28,14 @@ except urllib2.URLError as e:
 	print "An error occured: " + str(e.reason)
 	exit()
 
-resources = content.split("=\"")
+resources = re.split("=\"|='", content)
 
 first = False
 for resource in resources:
 	if first == False:
 		first = True
 		continue
-	resource = resource.split("\"")[0]
+	resource = re.split("\"|'", resource)[0]
 	if any(s in resource for s in dataTypesToDownload):
 		print "Downloading " + resource
 		try:
