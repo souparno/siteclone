@@ -6,6 +6,9 @@
 .AppleDouble
 .LSOverride
 
+# Test folder
+Test/
+
 # Icon must end with two \r
 Icon
 

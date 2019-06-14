@@ -1,5 +1,4 @@
-#!/usr/bin/python
-import urllib2
+import requests
 import sys
 import socket
 import os
@@ -10,12 +9,14 @@ socket.setdefaulttimeout(15)
 dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html"]
 
 if len(sys.argv) == 1:
-	url = raw_input("URL of site to clone: ")
+	url = input("URL of site to clone: ")
 else:
 	url = sys.argv[1]
 
-if len(sys.argv) == 2:
-        pathbase = raw_input("Directory name of site where to clone it: ")
+print(sys.argv)
+
+if len(sys.argv) <= 2:
+        pathbase = input("Directory to clone into: ")
 else:
         pathbase = sys.argv[2]
 
@@ -26,12 +27,16 @@ try:
 	os.mkdir(pathbase)
 except OSError:
 	pass
+
 file = open(pathbase + "/index.html", "w")
-try:
-	content = urllib2.urlopen(url).read()
-except urllib2.URLError as e:
-	print "An error occured: " + str(e.reason)
-	exit()
+
+
+with requests.Session() as r:
+	try:
+		content = r.get(url).text
+		print(content)
+	except Error as e:
+		print("Error: {}".format(e))
 
 resources = re.split("=\"|='", content)
 
@@ -42,7 +47,7 @@ for resource in resources:
 		continue
 	resource = re.split("\"|'", resource)[0]
 	if any(s in resource for s in dataTypesToDownload):
-		print "Downloading " + resource
+		print("Downloading " + resource)
 		try:
 			path = resource.split("/")
 			
@@ -62,10 +67,10 @@ for resource in resources:
 				download = open(pathbase + "/"+resource.split("?")[len(resource.split("?")) - 2], "w")
 			else:
 				download = open(pathbase + "/"+resource, "w")
-			print url+"/"+resource
-			dContent = urllib2.urlopen(url+"/"+resource).read()
-		except urllib2.URLError as e:
-			print "An error occured: " + str(e.reason)
+			print(url+"/"+resource)
+			dContent = urllib.request.urlopen(url+"/"+resource).read()
+		except urllib.error.URLError as e:
+			print("An error occured: " + str(e.reason))
 			download.close()
 			continue
 		except IOError:
@@ -73,10 +78,10 @@ for resource in resources:
 			continue
 		download.write(dContent)
 		download.close()
-		print "Downloaded!"
+		print("Downloaded!")
 
 file.write(content)
 
-print "Cloned "+url+" !"
+print("Cloned "+url+" !")
 
 file.close()
