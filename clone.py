@@ -59,13 +59,14 @@ def download(resource):
 
 socket.setdefaulttimeout(15)
 
-dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html"]
+dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php"]
 
 if len(sys.argv) == 1:
 	url = input("URL of site to clone: ")
 else:
 	if sys.argv[1] == "-h":
 		print("Usage: {} [url] [directory]".format(sys.argv[0]))
+		exit()
 	url = sys.argv[1]
 
 if len(sys.argv) <= 2:
@@ -101,6 +102,15 @@ for resource in resources:
 
 	download(resource)
 
+#Catch root level documents in href tags
+hrefs = content.split("href=\"")
+
+for i in range( len(hrefs) - 1 ):
+	href = hrefs[i+1]
+	href = href.split("\"")[0]
+	if "/" not in href and "." in href and href.split(".")[1] in dataTypesToDownload:
+		download(href)
+
 for subdir, dirs, files in os.walk(base_path):
 	for file in files:
 		
@@ -116,7 +126,7 @@ for subdir, dirs, files in os.walk(base_path):
 			i = 1
 			for x in range(iterations):
 				path = arr[i].split(")")[0]
-				download(url+"/"+path)
+				download(path)
 				i += 1
 			
 print("Cloned "+url+" !")
