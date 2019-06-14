@@ -4,6 +4,7 @@ A python script to clone a webpage. It's that simple.
 # Setup:
 
 `git clone https://github.com/benjibobs/siteclone.git`
+
 `pip install requests`
 
 # Usage:
