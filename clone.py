@@ -6,6 +6,8 @@ import re
 
 def download(resource):
 
+	global downloadedFiles
+
 	if any(s in resource for s in dataTypesToDownload):
 
 		if " " in resource: # https://stackoverflow.com/a/4172592
@@ -14,11 +16,24 @@ def download(resource):
 		while resource.startswith("/"):
 			resource = resource[1:]
 
-		if resource.startswith("https://") or resource.startswith("http://"):
-			resource = resource.replace("https://", "").replace("http://", "")
+		external = False
+		prefix = ""
+		
+		if resource.startswith("https://"):
+			external = True
+			prefix="https://"
+			resource = resource.replace("https://", "")
+			
+		if resource.startswith("http://"):
+			external = True
+			prefix="http://"
+			resource = resource.replace("http://", "")
 
 		if resource.startswith("../"):
 			resource = resource.replace("../", "dotdot/")
+
+		if resource in downloadedFiles:
+			return
 
 		try:
 			path = resource.split("/")
@@ -39,13 +54,16 @@ def download(resource):
 		try:
 
 			if "?" in resource:
-				download = open(base_path + "/"+ resource.split("?")[len(resource.split("?")) - 2], "w")
+				download = open(base_path + "/"+ resource.split("?")[len(resource.split("?")) - 2], "wb")
 			else:
-				download = open(base_path + "/"+ resource, "w")
+				download = open(base_path + "/"+ resource, "wb")
 
 			print("Downloading {} to {}".format(resource, download.name))
 
-			dContent = requests.get(url+"/"+resource).text
+			if external:
+				dContent = requests.get(prefix+resource, stream=True)
+			else:
+				dContent = requests.get(url+"/"+resource, stream=True)
 		
 		except Exception as e:
 		
@@ -53,13 +71,17 @@ def download(resource):
 			download.close()
 			return
 		
-		download.write(dContent)
+		for chunk in dContent:
+			download.write(chunk)
+
 		download.close()
 		print("Downloaded!")
+		downloadedFiles.append(resource)
 
 socket.setdefaulttimeout(15)
 
-dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php"]
+downloadedFiles = []
+dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json"]
 
 if len(sys.argv) == 1:
 	url = input("URL of site to clone: ")
@@ -108,15 +130,18 @@ hrefs = content.split("href=\"")
 for i in range( len(hrefs) - 1 ):
 	href = hrefs[i+1]
 	href = href.split("\"")[0]
-	if "/" not in href and "." in href and href.split(".")[1] in dataTypesToDownload:
+	if "/" not in href and "." in href and ("." + href.split(".")[-1]) in dataTypesToDownload:
 		download(href)
+
+textFiles = [ "css", "js", "html", "php", "json"]
+print('Scanning for CSS based url(x) references...')
 
 for subdir, dirs, files in os.walk(base_path):
 	for file in files:
 		
-		if file == ".DS_Store":
+		if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
 			continue
-		
+
 		f = open(os.path.join(subdir, file), 'r')
 		
 		content = f.read()
