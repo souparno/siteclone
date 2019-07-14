@@ -4,44 +4,48 @@ import socket
 import os
 import re
 
-def download(resource):
+
+def download(item):
 
 	global downloadedFiles
 
-	if any(s in resource for s in dataTypesToDownload):
+	if any(s in item for s in dataTypesToDownload):
 
-		if " " in resource: # https://stackoverflow.com/a/4172592
+		if " " in item:  # https://stackoverflow.com/a/4172592
 			return
 
-		while resource.startswith("/"):
-			resource = resource[1:]
+		while item.startswith("/"):
+			item = item[1:]
 
 		external = False
 		prefix = ""
+
+		if "#" in item:
+			item = item.split("#")[0]
 		
-		if resource.startswith("https://"):
+		if item.startswith("https://"):
 			external = True
-			prefix="https://"
-			resource = resource.replace("https://", "")
+			prefix = "https://"
+			item = item.replace("https://", "")
 			
-		if resource.startswith("http://"):
+		if item.startswith("http://"):
 			external = True
-			prefix="http://"
-			resource = resource.replace("http://", "")
+			prefix = "http://"
+			item = item.replace("http://", "")
 
-		if resource.startswith("../"):
-			resource = resource.replace("../", "dotdot/")
+		if item.startswith("../"):
+			item = item.replace("../", "dotdot/")
 
-		if resource in downloadedFiles:
+		if item in downloadedFiles:
 			return
 
 		try:
-			path = resource.split("/")
+			item_path = item.split("/")
 			
-			if len(path) != 1:
-				path.pop(len(path) - 1)
+			if len(item_path) != 1:
+				item_path.pop(len(item_path) - 1)
 				trail = "./" + base_path + "/"
-				for folder in path:
+				for folder in item_path:
 					trail += folder+"/"
 					try:
 						os.mkdir(trail)
@@ -53,17 +57,17 @@ def download(resource):
 
 		try:
 
-			if "?" in resource:
-				download = open(base_path + "/"+ resource.split("?")[len(resource.split("?")) - 2], "wb")
+			if "?" in item:
+				download = open(base_path + "/" + item.split("?")[len(item.split("?")) - 2], "wb")
 			else:
-				download = open(base_path + "/"+ resource, "wb")
+				download = open(base_path + "/" + item, "wb")
 
-			print("Downloading {} to {}".format(resource, download.name))
+			print("Downloading {} to {}".format(item, download.name))
 
 			if external:
-				dContent = requests.get(prefix+resource, stream=True)
+				dContent = requests.get(prefix+item, stream=True)
 			else:
-				dContent = requests.get(url+"/"+resource, stream=True)
+				dContent = requests.get(url+"/"+item, stream=True)
 		
 		except Exception as e:
 		
@@ -77,6 +81,7 @@ def download(resource):
 		download.close()
 		print("Downloaded!")
 		downloadedFiles.append(resource)
+
 
 socket.setdefaulttimeout(15)
 
@@ -92,9 +97,9 @@ else:
 	url = sys.argv[1]
 
 if len(sys.argv) <= 2:
-    base_path = input("Directory to clone into: ")
+	base_path = input("Directory to clone into: ")
 else:
-    base_path = sys.argv[2]
+	base_path = sys.argv[2]
 
 if "http://" not in url and "https://" not in url:
 	url = "http://"+url
@@ -124,7 +129,7 @@ for resource in resources:
 
 	download(resource)
 
-#Catch root level documents in href tags
+# Catch root level documents in href tags
 hrefs = content.split("href=\"")
 
 for i in range( len(hrefs) - 1 ):
@@ -133,7 +138,7 @@ for i in range( len(hrefs) - 1 ):
 	if "/" not in href and "." in href and ("." + href.split(".")[-1]) in dataTypesToDownload:
 		download(href)
 
-textFiles = [ "css", "js", "html", "php", "json"]
+textFiles = ["css", "js", "html", "php", "json"]
 print('Scanning for CSS based url(x) references...')
 
 for subdir, dirs, files in os.walk(base_path):
