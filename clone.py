@@ -86,7 +86,7 @@ def download(item):
 socket.setdefaulttimeout(15)
 
 downloadedFiles = []
-dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json"]
+dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".eot"]
 
 if len(sys.argv) == 1:
 	url = input("URL of site to clone: ")
