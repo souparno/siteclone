@@ -8,6 +8,9 @@ from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 
 
+#  build the path by removing extra // and resolving relative path
+#  ex: abc//def = abc/def
+#  and abc/def/../ghi = abc/ghi
 def build_path(path):
     temp_path = re.sub("\/\.\/|\/+", "/", path)
     
@@ -39,6 +42,7 @@ def download(item):
     global downloaded
     global downloadPaths
     global downloadedFiles
+    global url
 
     if any(s in item for s in dataTypesToDownload):
 
@@ -53,7 +57,7 @@ def download(item):
 
         if "#" in item:
             item = item.split("#")[0]
-        
+
         if item.startswith("https://"):
             external = True
             prefix = "https://"
@@ -124,7 +128,7 @@ def download(item):
 downloadedFiles = []
 downloadPaths = []
 downloaded = False
-dataTypesToDownload = [".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".woff2", ".eot"]
+dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".woff2", ".eot"]
 
 if len(sys.argv) == 1:
     url = input("URL of site to clone: ")
@@ -153,7 +157,6 @@ except OSError:
 
 response = get(url)
 content = response.read().decode('utf-8')
-
 soup = BeautifulSoup(content, "html.parser")
 
 
@@ -181,26 +184,37 @@ for script in soup.find_all('script', src=True):
         downloaded = False
 
 
+#  Download all the image src links to local
+for img in soup.find_all('img', src=True):
+    resource = img['src']
+    download(resource)
+
+    if downloaded == True:
+        print("img src attribute modified !")
+
+        img['src'] = downloadPaths[-1]
+        downloaded = False
+
 file = open(build_path(base_path + "/index.html"), "w")
 file.write(str(soup))
 file.close()
 
-resources = re.split("=\"|='", content)
+#  resources = re.split("=\"|='", content)
 
-for resource in resources:
+#  for resource in resources:
 
-        resource = re.split("\"|'", resource)[0]
+#          resource = re.split("\"|'", resource)[0]
 
-        download(resource)
+#          download(resource)
     
-# Catch root level documents in href tags
-hrefs = content.split("href=\"")
+#  # Catch root level documents in href tags
+#  hrefs = content.split("href=\"")
 
-for i in range( len(hrefs) - 1 ):
-        href = hrefs[i+1]
-        href = href.split("\"")[0]
-        if "/" not in href and "." in href and ("." + href.split(".")[-1]) in dataTypesToDownload:
-                download(href)
+#  for i in range( len(hrefs) - 1 ):
+#          href = hrefs[i+1]
+#          href = href.split("\"")[0]
+#          if "/" not in href and "." in href and ("." + href.split(".")[-1]) in dataTypesToDownload:
+#                  download(href)
 
 
 textFiles = ["css", "js", "html", "php", "json"]
@@ -241,5 +255,6 @@ for subdir, dirs, files in os.walk(base_path):
         f.truncate()
         f.write("".join(arr))
         f.close()
+
 
 print("Cloned "+url+" !")

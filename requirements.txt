@@ -1,0 +1,3 @@
+PySocks
+beautifulsoup4
+socks
