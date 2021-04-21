@@ -110,13 +110,18 @@ def download(item):
             download = open(build_path(base_path + download_path), "wb")
             downloadPaths.append(download_path)
            
-            print("Downloading {} to {}".format(item, download.name))
             
             if external:
-                dContent = get(prefix + item)
+                d_url = build_path(prefix + item)
             else:
-                dContent = get(url + "/" + item)
-        
+                d_url = build_path(url + "/" + item)
+
+            #  adding the / to http:/ or https:/ that got removed while build_path
+            protocol = re.findall("http:\/|https:\/",  d_url)
+            d_url = re.sub("http:\/|https:\/", protocol[0] + "/", d_url)
+           
+            print("Downloading {} to {}".format(d_url, download.name))
+            dContent = get(d_url)
         except Exception as e:
  
             print("An error occured: " + str(e.reason))
@@ -127,9 +132,9 @@ def download(item):
             download.write(chunk)
 
         download.close()
-        print("Downloaded!")
         downloadedFiles.append(resource)
         downloaded = True
+        print("Downloaded!")
 
 
 
@@ -153,7 +158,7 @@ else:
 
 
 if "http://" not in url and "https://" not in url:
-    url = "http://"+url
+    url = "http://" + url
 
 domain = "//".join(url.split("//")[1:])
 
@@ -246,7 +251,5 @@ for subdir, dirs, files in os.walk(base_path):
         f.write("".join(arr))
         f.close()
 
-
-print(domain)
 
 print("Cloned "+url+" !")
