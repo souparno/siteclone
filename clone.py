@@ -42,6 +42,7 @@ def download(item):
     global downloaded
     global downloadPaths
     global downloadedFiles
+    global domain
     global url
 
     if any(s in item for s in dataTypesToDownload):
@@ -57,6 +58,16 @@ def download(item):
 
         if "#" in item:
             item = item.split("#")[0]
+
+        if item.startswith(url):
+            external = True
+            prefix = url
+            item = item.replace(url, "")
+
+        if item.startswith(domain):
+            external = True
+            prefix = domain
+            item = item.replace(domain, "")
 
         if item.startswith("https://"):
             external = True
@@ -91,9 +102,6 @@ def download(item):
             pass
 
         try:
-
-            download_path = ""
-
             if "?" in item:
                 download_path = build_path("/" + item.split("?")[len(item.split("?")) - 2])
             else:
@@ -105,9 +113,9 @@ def download(item):
             print("Downloading {} to {}".format(item, download.name))
             
             if external:
-                dContent = get(prefix+item)
+                dContent = get(prefix + item)
             else:
-                dContent = get(url+"/"+item)
+                dContent = get(url + "/" + item)
         
         except Exception as e:
  
@@ -128,7 +136,7 @@ def download(item):
 downloadedFiles = []
 downloadPaths = []
 downloaded = False
-dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".woff2", ".eot"]
+dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".woff2", ".eot", ".mp4"]
 
 if len(sys.argv) == 1:
     url = input("URL of site to clone: ")
@@ -199,23 +207,6 @@ file = open(build_path(base_path + "/index.html"), "w")
 file.write(str(soup))
 file.close()
 
-#  resources = re.split("=\"|='", content)
-
-#  for resource in resources:
-
-#          resource = re.split("\"|'", resource)[0]
-
-#          download(resource)
-    
-#  # Catch root level documents in href tags
-#  hrefs = content.split("href=\"")
-
-#  for i in range( len(hrefs) - 1 ):
-#          href = hrefs[i+1]
-#          href = href.split("\"")[0]
-#          if "/" not in href and "." in href and ("." + href.split(".")[-1]) in dataTypesToDownload:
-#                  download(href)
-
 
 textFiles = ["css", "js", "html", "php", "json"]
 print('Scanning for CSS based url(x) references...')
@@ -239,15 +230,14 @@ for subdir, dirs, files in os.walk(base_path):
             
 
 
-        for elm in arr:
-            if "." + elm.split(".")[-1] in dataTypesToDownload:
-                resource = elm
+        for resource in arr:
+            if "." + resource.split(".")[-1] in dataTypesToDownload:
                 download(resource)
 
                 
                 if downloaded == True:
                     print("modifying the resource links") 
-                    arr[arr.index(elm)] = downloadPaths[-1] 
+                    arr[arr.index(resource)] = downloadPaths[-1] 
                     downloaded = False
 
 
@@ -256,5 +246,7 @@ for subdir, dirs, files in os.walk(base_path):
         f.write("".join(arr))
         f.close()
 
+
+print(domain)
 
 print("Cloned "+url+" !")
