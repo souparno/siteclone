@@ -49,12 +49,9 @@ def resources(content):
 def download(item):
 
     global downloaded
-    global downloadPaths
     global downloadedFiles
     global domain
     global url
-
-    #  if any(s in item for s in dataTypesToDownload):
 
     if " " in item:  # https://stackoverflow.com/a/4172592
         return
@@ -100,29 +97,30 @@ def download(item):
             for folder in item_path:
                 trail += folder+"/"
                 try:
-                        os.mkdir(trail)
+                    os.mkdir(trail)
                 except OSError:
-                        pass	
+                    pass	
 
     except IOError:
         pass
 
+
+    if "?" in item:
+        download_path = build_path("/" + item.split("?")[len(item.split("?")) - 2])
+    else:
+        download_path = build_path("/" + item)
+
+
+    #  If the element is already downloaded make downloaded flag true  and move to the 
+    #  end of the list so that the content can be overwritten with the correct path
+    if download_path in downloadedFiles:
+        downloaded = True
+        downloadedFiles.append(download_path)
+        return
+
+
     try:
-        if "?" in item:
-            download_path = build_path("/" + item.split("?")[len(item.split("?")) - 2])
-        else:
-            download_path = build_path("/" + item)
-
-        #  If the element is already downloaded make downloaded flag true  and move to the 
-        #  end of the list so that the content can be overwritten with the correct path
-        #  if download_path in downloadPaths:
-        #      print("======= H E Y   C H E C K   T H I S   O U T =====")
-        #      downloaded = True
-        #      downloadPaths.pop(downloadPaths.index(download_path))
-        #      return
-
         download = open(build_path(base_path + download_path), "wb")
-        downloadPaths.append(download_path)
  
         if external:
             d_url = build_path(prefix + item)
@@ -147,13 +145,12 @@ def download(item):
         download.write(chunk)
 
     download.close()
-    #  downloadedFiles.append(resource)
     downloaded = True
+    downloadedFiles.append(download_path)
     print("Downloaded!")
 
 
 downloadedFiles = []
-downloadPaths = []
 downloaded = False
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff", ".woff2", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
@@ -190,22 +187,13 @@ for resource in resources(content):
     download(resource) 
 
     if downloaded == True:
-        content = content.replace(resource, downloadPaths[-1])
+        content = content.replace(resource, downloadedFiles[-1])
         downloaded = False
-
-        #  print("==========================")
-        #  print("replacing " + resource + " with " + downloadPaths[-1])
-        #  print("==========================")
-
 
 
 file = open(build_path(base_path + "/index.html"), "w")
 file.write(content)
 file.close()
-
-    #  if resource == "/wp-content/themes/twentysixteen/images/newdesign/appfutura.svg":
-    #      break
-
 
 print('Scanning for CSS based url(x) references...')
 
@@ -227,7 +215,6 @@ for subdir, dirs, files in os.walk(base_path):
                 arr.append(i) 
             
 
-
         for resource in arr:
             if "." + resource.split(".")[-1] in dataTypesToDownload:
                 download(resource)
@@ -235,7 +222,7 @@ for subdir, dirs, files in os.walk(base_path):
                 
                 if downloaded == True:
                     print("modifying the resource links") 
-                    arr[arr.index(resource)] = downloadPaths[-1] 
+                    arr[arr.index(resource)] = downloadedFiles[-1] 
                     downloaded = False
 
 
@@ -243,51 +230,5 @@ for subdir, dirs, files in os.walk(base_path):
         f.truncate()
         f.write("".join(arr))
         f.close()
-
-
-#  def get_listing(path):
-#      file_listing = []
-
-#      for subdir, dirs, files in os.walk(path):
-#          for f in files:
-#              file_listing.append(os.path.join(subdir, f))
-
-#      return file_listing
-
-#  before = []
-#  after = get_listing(base_path)
-#  diff = [f for f in after if not f in before]
-
-#  while diff:
-    
-#      for file in diff:
-
-#          if file.split(".")[-1]  == "DS_Store" or file.split(".")[-1] not in textFiles:
-#              continue
-
-#          f = open(file, 'r+')
-
-#          print("S C A N N I N G   F I L E : " + f.name)
-      
-
-#          content = f.read()
-
-#          for resource in resources(content):
-#              download(resource) 
-        
-#              if downloaded == True:
-#                  content = content.replace(resource, downloadPaths[-1])
-#                  downloaded = False
-            
-
-#          f.seek(0)
-#          f.truncate()
-#          f.write(content)
-#          f.close()
-
-#      before = after
-#      after = get_listing(base_path)
-#      diff = [f for f in after if not f in before]
-
 
 print("Cloned " + url + " !")
