@@ -183,22 +183,22 @@ except OSError:
     pass
 
 
-#  response = get(url)
-#  content = response.read().decode('utf-8')
+response = get(url)
+content = response.read().decode('utf-8')
 
-#  for resource in resources(content):
-#      download(resource) 
+for resource in resources(content):
+    download(resource) 
 
-#      if downloaded == True:
-#          content = content.replace(resource, downloadedFiles[-1])
-#          downloaded = False
+    if downloaded == True:
+        content = content.replace(resource, downloadedFiles[-1])
+        downloaded = False
 
 
-#  file = open(build_path(base_path + "/index.html"), "w")
-#  file.write(content)
-#  file.close()
+file = open(build_path(base_path + "/index.html"), "w")
+file.write(content)
+file.close()
 
-#  print('Scanning for CSS based url(x) references...')
+print('Scanning for CSS based url(x) references...')
 
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
