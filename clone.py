@@ -36,28 +36,30 @@ def build_path(path):
 
     return temp_path
 
-def resources(content):
+def resources(content, reg = ""):
     items = []
-    regex = "a-zA-Z0-9\.\/:-"
-    regex = "([" + regex + "]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([" + regex + "?=&]*)"
+    regex = "a-zA-Z0-9\.\/:\-_"
+    regex = reg + "([" + regex + "]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([" + regex + "?=&#]*)"
 
     for match in re.findall(regex, content):
-       items.append(''.join(match))
+
+        if((match[2] and match[2].startswith("?")) or match[2] == ''): 
+           items.append(''.join(match))
 
     return items
+
 
 def download(item):
 
     global downloaded
     global downloadedFiles
-    global domain
-    global url
 
     if " " in item:  # https://stackoverflow.com/a/4172592
         return
 
     while item.startswith("/"):
         item = item[1:]
+
 
     external = False
     prefix = ""
@@ -72,7 +74,7 @@ def download(item):
 
     if item.startswith(domain):
         external = True
-        prefix = domain
+        prefix = url
         item = item.replace(domain, "")
 
     if item.startswith("https://"):
@@ -115,7 +117,7 @@ def download(item):
     #  end of the list so that the content can be overwritten with the correct path
     if download_path in downloadedFiles:
         downloaded = True
-        downloadedFiles.append(download_path)
+        downloadedFiles.append(downloadedFiles.pop(downloadedFiles.index(download_path)))
         return
 
 
@@ -126,6 +128,7 @@ def download(item):
             d_url = build_path(prefix + item)
         else:
             d_url = build_path(url + "/" + item)
+
 
         #  adding the / to http:/ or https:/ that got removed while build_path
         #  for protocol in re.findall("http:\/|https:\/",  d_url):
@@ -159,8 +162,8 @@ if len(sys.argv) == 1:
     url = input("URL of site to clone: ")
 else:
     if sys.argv[1] == "-h":
-            print("Usage: {} [url] [directory]".format(sys.argv[0]))
-            exit()
+        print("Usage: {} [url] [directory]".format(sys.argv[0]))
+        exit()
     url = sys.argv[1]
 
 if len(sys.argv) <= 2:
@@ -180,22 +183,22 @@ except OSError:
     pass
 
 
-response = get(url)
-content = response.read().decode('utf-8')
+#  response = get(url)
+#  content = response.read().decode('utf-8')
 
-for resource in resources(content):
-    download(resource) 
+#  for resource in resources(content):
+#      download(resource) 
 
-    if downloaded == True:
-        content = content.replace(resource, downloadedFiles[-1])
-        downloaded = False
+#      if downloaded == True:
+#          content = content.replace(resource, downloadedFiles[-1])
+#          downloaded = False
 
 
-file = open(build_path(base_path + "/index.html"), "w")
-file.write(content)
-file.close()
+#  file = open(build_path(base_path + "/index.html"), "w")
+#  file.write(content)
+#  file.close()
 
-print('Scanning for CSS based url(x) references...')
+#  print('Scanning for CSS based url(x) references...')
 
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
@@ -207,28 +210,21 @@ for subdir, dirs, files in os.walk(base_path):
         
         print("Scanning  File " + f.name)
 
-        arr = []
         content = f.read()
 
-        for item in re.split("(url\(.*?\))", content):
-            for i in re.split("(url\()(.*?)(\))", item):
-                arr.append(i) 
-            
+        for resource in resources(content, "url\s*\(['\"]*"):
+            download(resource)
 
-        for resource in arr:
-            if "." + resource.split(".")[-1] in dataTypesToDownload:
-                download(resource)
+            if downloaded == True:
+                content = content.replace(resource, downloadedFiles[-1])
+                downloaded = False
 
-                
-                if downloaded == True:
-                    print("modifying the resource links") 
-                    arr[arr.index(resource)] = downloadedFiles[-1] 
-                    downloaded = False
 
 
         f.seek(0)
         f.truncate()
-        f.write("".join(arr))
+        f.write(content)
         f.close()
+
 
 print("Cloned " + url + " !")
