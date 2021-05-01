@@ -36,7 +36,7 @@ def build_path(path):
 
     return temp_path
 
-def resources(content, reg = ""):
+def resources(content, reg):
     items = []
     regex = "a-zA-Z0-9\.\/:\-_"
     regex = reg + "([" + regex + "]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([" + regex + "?=&#]*)"
@@ -49,23 +49,63 @@ def resources(content, reg = ""):
     return items
 
 
-def download(item):
-
+def replace(content, reg = ""):
     global downloaded
-    global downloadedFiles
 
-    if " " in item:  # https://stackoverflow.com/a/4172592
-        return
+    for resource in resources(content, reg):
+        download(resource)
 
+        if downloaded == True:
+            content = content.replace(resource, downloadedFiles[-1])
+            downloaded = False
+
+    return content
+
+
+def write(dContent, base_path, download_path):
+
+    item = download_path
+    
     while item.startswith("/"):
         item = item[1:]
 
+    if "#" in item:
+        item = item.split("#")[0]
+
+    #  try:
+    item_path = item.split("/")
+    
+    if len(item_path) != 1:
+        item_path.pop(len(item_path) - 1)
+        trail = "./" + base_path
+        for folder in item_path:
+            trail += folder+"/"
+            try:
+                os.mkdir(trail)
+            except OSError:
+                pass	
+
+    #  except IOError:
+    #      pass
+
+
+    download = open(build_path(base_path + download_path ), "wb")
+
+    for chunk in dContent:
+        download.write(chunk)
+
+    download.close()
+
+
+def download(item):
+    global downloaded
+    global downloadedFiles
 
     external = False
     prefix = ""
 
-    if "#" in item:
-        item = item.split("#")[0]
+    while item.startswith("/"):
+        item = item[1:]
 
     if item.startswith(url):
         external = True
@@ -90,22 +130,6 @@ def download(item):
     if item.startswith("../"):
         item = item.replace("../", "dotdot/")
 
-    try:
-        item_path = item.split("/")
-        
-        if len(item_path) != 1:
-            item_path.pop(len(item_path) - 1)
-            trail = "./" + base_path + "/"
-            for folder in item_path:
-                trail += folder+"/"
-                try:
-                    os.mkdir(trail)
-                except OSError:
-                    pass	
-
-    except IOError:
-        pass
-
 
     if "?" in item:
         download_path = build_path("/" + item.split("?")[len(item.split("?")) - 2])
@@ -120,34 +144,28 @@ def download(item):
         downloadedFiles.append(downloadedFiles.pop(downloadedFiles.index(download_path)))
         return
 
+    if external:
+        d_url = build_path(prefix + item)
+    else:
+        d_url = build_path(url + "/" + item)
+
+
+    #  adding the / to http:/ or https:/ that got removed while build_path
+    #  for protocol in re.findall("http:\/|https:\/",  d_url):
+    #      d_url = re.sub("http:\/|https:\/", protocol + "/", d_url)       
+    d_url = re.match("(http:\/|https:\/)(.+)", d_url)
+    d_url = d_url.group(1) + "/" + d_url.group(2)
+
+    print("Downloading {} to {}".format(d_url, build_path(base_path + download_path)))
 
     try:
-        download = open(build_path(base_path + download_path), "wb")
- 
-        if external:
-            d_url = build_path(prefix + item)
-        else:
-            d_url = build_path(url + "/" + item)
-
-
-        #  adding the / to http:/ or https:/ that got removed while build_path
-        #  for protocol in re.findall("http:\/|https:\/",  d_url):
-        #      d_url = re.sub("http:\/|https:\/", protocol + "/", d_url)       
-        d_url = re.match("(http:\/|https:\/)(.+)", d_url)
-        d_url = d_url.group(1) + "/" + d_url.group(2)
-
-        print("Downloading {} to {}".format(d_url, download.name))
         dContent = get(d_url)
+        write(dContent, base_path, download_path)
+
     except Exception as e:
-
         print("An error occured: " + str(e.reason))
-        download.close()
         return
-    
-    for chunk in dContent:
-        download.write(chunk)
 
-    download.close()
     downloaded = True
     downloadedFiles.append(download_path)
     print("Downloaded!")
@@ -172,6 +190,8 @@ else:
     base_path = sys.argv[2]
 
 
+base_path = build_path(base_path + "/")
+
 if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
@@ -182,17 +202,10 @@ try:
 except OSError:
     pass
 
+#  os.system("brew services restart tor")
 
 response = get(url)
-content = response.read().decode('utf-8')
-
-for resource in resources(content):
-    download(resource) 
-
-    if downloaded == True:
-        content = content.replace(resource, downloadedFiles[-1])
-        downloaded = False
-
+content = replace(response.read().decode('utf-8'))
 
 file = open(build_path(base_path + "/index.html"), "w")
 file.write(content)
@@ -210,16 +223,7 @@ for subdir, dirs, files in os.walk(base_path):
         
         print("Scanning  File " + f.name)
 
-        content = f.read()
-
-        for resource in resources(content, "url\s*\(['\"]*"):
-            download(resource)
-
-            if downloaded == True:
-                content = content.replace(resource, downloadedFiles[-1])
-                downloaded = False
-
-
+        content = replace(f.read(), "url\s*\(['\"]*")
 
         f.seek(0)
         f.truncate()
