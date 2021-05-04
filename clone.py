@@ -4,7 +4,9 @@ import ssl
 import re
 import socks
 import socket
+import string
 from urllib.request import Request, urlopen
+from urllib.parse import quote
 
 
 def get(url):
@@ -49,8 +51,7 @@ def resolvePath(path):
 
 def resources(content, reg):
     items = []
-    regex = "a-zA-Z0-9\.\/:\-_"
-    regex = reg + "([" + regex + "]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([" + regex + "?=&#]*)"
+    regex = reg + "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
     for match in re.findall(regex, content):
 
@@ -140,7 +141,7 @@ def download(from_dir, item):
     print("Downloading {} to {}".format(d_url, resolvePath([base_path, download_path])))
 
     try:
-        dContent = get(d_url)
+        dContent = get(quote(d_url, safe=string.printable))
         write(dContent, resolvePath([base_path, download_path]))
 
     except Exception as e:
