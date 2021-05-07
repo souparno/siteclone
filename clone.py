@@ -6,7 +6,7 @@ import socks
 import socket
 import string
 from urllib.request import Request, urlopen
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 
 def get(url):
@@ -17,19 +17,23 @@ def get(url):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    request = Request(url)
+    request = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     socks.set_default_proxy(socks.SOCKS5, IP_ADDR, PORT)
     socket.socket = socks.socksocket
 
     return  urlopen(request, context=ctx)
 
+def extractUrl(url):
+    url_parse = urlparse(url)
+
+    return url_parse[0] + "://" + url_parse[1] + url_parse[2]
 
 #  build the path by removing extra // and resolving relative path
 #  ex: abc//def = abc/def
 #  and abc/def/../ghi = abc/ghi
 def resolvePath(path):
     temp_path = re.sub("\/\.\/|\/+", "/", "/".join(path))
-    
+
     while True:
         path = temp_path
         temp_path = re.sub("(^|\/)(?!\.?\.\/)([^\/]+)\/\.\.\/*", "/", temp_path)
@@ -62,14 +66,10 @@ def resources(content, reg):
 
 
 def replace(from_dir, content, reg = ""):
-    global downloaded
-
     for resource in resources(content, reg):
-        download(from_dir, resource)
-
-        if downloaded == True:
+        
+        if download(from_dir, resource):
             content = content.replace(resource, resolvePath(["/", downloadedFiles[-1]]))
-            downloaded = False
 
     return content
 
@@ -95,7 +95,6 @@ def write(dContent, download_path):
 
 
 def download(from_dir, item):
-    global downloaded
     global downloadedFiles
 
     external = False
@@ -115,16 +114,10 @@ def download(from_dir, item):
         prefix = re.match("http:\/\/|https:\/\/", item).group(0)
         item = re.sub("http:\/\/|https:\/\/", "", item)
 
-    if item.startswith(("./", "../")):
+    if item.startswith("."):
         item = resolvePath([from_dir, item])
 
-
-    download_path = resolvePath([item])
-
-
-    if "?" in download_path:
-        download_path = "".join(download_path.split("?")[:-1])
-
+    download_path = resolvePath([urlparse(item)[2]])
 
     #  If the element is already downloaded make downloaded flag true  and move to the 
     #  end of the list so that the content can be overwritten with the correct path
@@ -135,6 +128,7 @@ def download(from_dir, item):
 
     if external:
         d_url = resolvePath([prefix, item])
+
     else:
         d_url = resolvePath([url, item])
 
@@ -143,18 +137,16 @@ def download(from_dir, item):
     try:
         dContent = get(quote(d_url, safe=string.printable))
         write(dContent, resolvePath([base_path, download_path]))
+        downloadedFiles.append(download_path)
+        print("Downloaded!")
+        return True
 
     except Exception as e:
         print("An error occured: " + str(e.reason))
-        return
-
-    downloaded = True
-    downloadedFiles.append(download_path)
-    print("Downloaded!")
+        return False
 
 
 downloadedFiles = []
-downloaded = False
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
 
@@ -175,13 +167,15 @@ if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
 
-domain = "//".join(url.split("//")[1:])
+frag = url.replace(extractUrl(url), "")
+url = extractUrl(url)
+domain = urlparse(url)[1]
 
-
-response = get(url)
+response = get(url + frag)
 content = replace(base_path, response.read().decode('utf-8'))
 
-file = open(resolvePath([base_path + "index.html"]), "w")
+
+file = open(resolvePath([base_path, "index.html"]), "w")
 file.write(content)
 file.close()
 
