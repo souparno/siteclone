@@ -17,7 +17,7 @@ def get(url):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
 
-    request = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    request = Request(url)
     socks.set_default_proxy(socks.SOCKS5, IP_ADDR, PORT)
     socket.socket = socks.socksocket
 
@@ -69,7 +69,8 @@ def replace(from_dir, content, reg = ""):
     for resource in resources(content, reg):
         
         if download(from_dir, resource):
-            content = content.replace(resource, resolvePath(["/", downloadedFiles[-1]]))
+            path = downloadedFiles[-1].replace(base_path, "")
+            content = content.replace(resource, resolvePath(["/", path]))
 
     return content
 
@@ -103,6 +104,9 @@ def download(from_dir, item):
     while item.startswith("/"):
         item = item[1:]
 
+    if item.startswith("."):
+        item = resolvePath([from_dir, item])
+
     if item.startswith(url):
         item = item.replace(url, "")
 
@@ -114,17 +118,15 @@ def download(from_dir, item):
         prefix = re.match("http:\/\/|https:\/\/", item).group(0)
         item = re.sub("http:\/\/|https:\/\/", "", item)
 
-    if item.startswith("."):
-        item = resolvePath([from_dir, item])
-
-    download_path = resolvePath([urlparse(item)[2]])
+    download_path = resolvePath([base_path, urlparse(item)[2]])
 
     #  If the element is already downloaded make downloaded flag true  and move to the 
     #  end of the list so that the content can be overwritten with the correct path
     if download_path in downloadedFiles:
-        downloaded = True
-        downloadedFiles.append(downloadedFiles.pop(downloadedFiles.index(download_path)))
-        return
+        index = downloadedFiles.index(download_path)
+        downloadedFiles.append(downloadedFiles.pop(index))
+        downloadUrls.append(downloadUrls.pop(index))
+        return True
 
     if external:
         d_url = resolvePath([prefix, item])
@@ -132,12 +134,13 @@ def download(from_dir, item):
     else:
         d_url = resolvePath([url, item])
 
-    print("Downloading {} to {}".format(d_url, resolvePath([base_path, download_path])))
+    print("Downloading {} to {}".format(d_url, download_path))
 
     try:
         dContent = get(quote(d_url, safe=string.printable))
-        write(dContent, resolvePath([base_path, download_path]))
+        write(dContent, download_path)
         downloadedFiles.append(download_path)
+        downloadUrls.append(d_url)
         print("Downloaded!")
         return True
 
@@ -147,6 +150,7 @@ def download(from_dir, item):
 
 
 downloadedFiles = []
+downloadUrls = []
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
 
@@ -174,10 +178,14 @@ domain = urlparse(url)[1]
 response = get(url + frag)
 content = replace(base_path, response.read().decode('utf-8'))
 
-
-file = open(resolvePath([base_path, "index.html"]), "w")
+path = resolvePath([base_path, "index.html"])
+file = open(path, "w")
 file.write(content)
 file.close()
+
+
+downloadedFiles.append(path)
+downloadUrls.append(url)
 
 print('Scanning for CSS based url(x) references...')
 
@@ -187,13 +195,13 @@ for subdir, dirs, files in os.walk(base_path):
         if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
             continue
 
-        f = open(os.path.join(subdir, file), 'r+')
+        file = os.path.join(subdir, file)
+        f = open(file, 'r+')
         
         print("Scanning  File " + f.name)
 
-        from_dir = "/".join(os.path.join(subdir, file).split("/")[:-1])
-        from_dir = "/".join(from_dir.split("/")[1:])
-
+        d_url = urlparse(downloadUrls[downloadedFiles.index(file)])
+        from_dir = d_url[0] + "://" + d_url[1] + "/".join(d_url[2].split("/")[:-1]) 
         content = replace(from_dir, f.read(), "url\s*\(['\"]*")
 
         f.seek(0)
