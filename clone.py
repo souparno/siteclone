@@ -7,7 +7,7 @@ import socket
 import string
 from urllib.request import Request, urlopen
 from urllib.parse import quote, urlparse
-
+from bs4 import BeautifulSoup
 
 def get(url):
     IP_ADDR = '127.0.0.1'
@@ -41,7 +41,6 @@ def resolvePath(path):
         if path == temp_path:
             break
 
-
     #  check if the path containes http or https protocol, if yes, then replace the 
     #  "/" removed from the pretocol while resolving it
     prefix = re.match("http:\/|https:\/", temp_path)
@@ -65,10 +64,10 @@ def resources(content, reg):
     return items
 
 
-def replace(from_dir, content, reg = ""):
+def replace(content, fromUrl = "", reg = ""):
     for resource in resources(content, reg):
         
-        if download(from_dir, resource):
+        if download(fromUrl, resource):
             path = downloadedFiles[-1].replace(base_path, "")
             content = content.replace(resource, resolvePath(["/", path]))
 
@@ -95,7 +94,7 @@ def write(dContent, download_path):
     download.close()
 
 
-def download(from_dir, item):
+def download(fromUrl, item):
     global downloadedFiles
 
     external = False
@@ -105,10 +104,13 @@ def download(from_dir, item):
         item = item[1:]
 
     if item.startswith("."):
-        item = resolvePath([from_dir, item])
+        item = resolvePath([fromUrl, item])
 
     if item.startswith(url):
         item = item.replace(url, "")
+
+    if item.startswith(urlparse(url)[1] + urlparse(url)[2]):
+        item = item.replace(urlparse(url)[1] + urlparse(url)[2],  "")
 
     if item.startswith(domain):
         item = item.replace(domain, "")
@@ -176,13 +178,18 @@ url = extractUrl(url)
 domain = urlparse(url)[1]
 
 response = get(url + frag)
-content = replace(base_path, response.read().decode('utf-8'))
+content = response.read().decode('utf-8')
+content = replace(content)
+soup = BeautifulSoup(content, "html.parser")
+
+for link in soup.find_all('a', href=True):
+    content = content.replace(link['href'], "#")
 
 path = resolvePath([base_path, "index.html"])
+
 file = open(path, "w")
 file.write(content)
 file.close()
-
 
 downloadedFiles.append(path)
 downloadUrls.append(url)
@@ -201,8 +208,8 @@ for subdir, dirs, files in os.walk(base_path):
         print("Scanning  File " + f.name)
 
         d_url = urlparse(downloadUrls[downloadedFiles.index(file)])
-        from_dir = d_url[0] + "://" + d_url[1] + "/".join(d_url[2].split("/")[:-1]) 
-        content = replace(from_dir, f.read(), "url\s*\(['\"]*")
+        fromUrl = d_url[0] + "://" + d_url[1] + "/".join(d_url[2].split("/")[:-1]) 
+        content = replace(f.read(), fromUrl, "url\s*\(['\"]*")
 
         f.seek(0)
         f.truncate()
