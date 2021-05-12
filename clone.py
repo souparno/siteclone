@@ -23,10 +23,17 @@ def get(url):
 
     return  urlopen(request, context=ctx)
 
-def extractUrl(url):
-    url_parse = urlparse(url)
+def getScheme(url):
+    return urlparse(url)[0] + "://"
 
-    return url_parse[0] + "://" + url_parse[1] + url_parse[2]
+def getDomain(url):
+    return getScheme(url) + urlparse(url)[1]
+
+def getDownloadPath(item):
+    schemes = [domain, "http://", "https://"]
+    regex = re.compile("|".join(schemes))
+    item = re.sub(regex, "", item)
+    return urlparse(item)[2]
 
 #  build the path by removing extra // and resolving relative path
 #  ex: abc//def = abc/def
@@ -52,23 +59,20 @@ def resolvePath(path):
     return temp_path
 
 
-def resources(content, reg):
+def resources(content, regex):
     items = []
-    regex = reg + "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
     for match in re.findall(regex, content):
-
-        if((match[2] and match[2].startswith("?")) or match[2] == ''): 
-           items.append(''.join(match))
+        items.append(''.join(match))
 
     return items
 
 
-def replace(content, fromUrl = "", reg = ""):
+def replace(content, reg, fromUrl = ""):
     for resource in resources(content, reg):
-        
-        if download(fromUrl, resource):
-            path = downloadedFiles[-1].replace(base_path, "")
+        path = download(fromUrl, re.sub("\\\/", "/", resource))
+
+        if path:
             content = content.replace(resource, resolvePath(["/", path]))
 
     return content
@@ -85,9 +89,8 @@ def write(dContent, download_path):
             os.mkdir(trail)
         except OSError:
             pass	
-    
+   
     download = open(download_path, "wb")
-
     for chunk in dContent:
         download.write(chunk)
 
@@ -97,61 +100,35 @@ def write(dContent, download_path):
 def download(fromUrl, item):
     global downloadedFiles
 
-    external = False
-    prefix = ""
-
-    while item.startswith("/"):
-        item = item[1:]
-
     if item.startswith("."):
         item = resolvePath([fromUrl, item])
 
-    if item.startswith(url):
-        item = item.replace(url, "")
+    if not urlparse(item)[1]:
+        item = resolvePath([domain, item])
 
-    if item.startswith(urlparse(url)[1] + urlparse(url)[2]):
-        item = item.replace(urlparse(url)[1] + urlparse(url)[2],  "")
+    if not urlparse(item)[0]:
+        item = resolvePath([scheme, item])
 
-    if item.startswith(domain):
-        item = item.replace(domain, "")
+    download_path = resolvePath([base_path, getDownloadPath(item)])
 
-    if item.startswith(("http://", "https://")):
-        external = True
-        prefix = re.match("http:\/\/|https:\/\/", item).group(0)
-        item = re.sub("http:\/\/|https:\/\/", "", item)
-
-    download_path = resolvePath([base_path, urlparse(item)[2]])
-
-    #  If the element is already downloaded make downloaded flag true  and move to the 
-    #  end of the list so that the content can be overwritten with the correct path
     if download_path in downloadedFiles:
-        index = downloadedFiles.index(download_path)
-        downloadedFiles.append(downloadedFiles.pop(index))
-        downloadUrls.append(downloadUrls.pop(index))
-        return True
+        return download_path
 
-    if external:
-        d_url = resolvePath([prefix, item])
-
-    else:
-        d_url = resolvePath([url, item])
-
-    print("Downloading {} to {}".format(d_url, download_path))
+    print("Downloading {} to {}".format(item, download_path))
 
     try:
-        dContent = get(quote(d_url, safe=string.printable))
-        write(dContent, download_path)
-        downloadedFiles.append(download_path)
-        downloadUrls.append(d_url)
+        dContent = get(quote(item, safe=string.printable))
+        write(dContent, download_path) 
+        downloadedFiles[download_path] = item
         print("Downloaded!")
-        return True
+        return download_path
 
     except Exception as e:
         print("An error occured: " + str(e.reason))
         return False
 
 
-downloadedFiles = []
+downloadedFiles = {}
 downloadUrls = []
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
@@ -172,30 +149,25 @@ else:
 if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
-
-frag = url.replace(extractUrl(url), "")
-url = extractUrl(url)
-domain = urlparse(url)[1]
-
-response = get(url + frag)
-content = response.read().decode('utf-8')
-content = replace(content)
+scheme = getScheme(url)
+domain = getDomain(url)
+response = get(url)
+regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
+content = replace(response.read().decode('utf-8'), regex)
 soup = BeautifulSoup(content, "html.parser")
 
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
 path = resolvePath([base_path, "index.html"])
+downloadedFiles[path] = resolvePath([url, 'index.html'])
 
 file = open(path, "w")
 file.write(content)
 file.close()
 
-downloadedFiles.append(path)
-downloadUrls.append(url)
 
 print('Scanning for CSS based url(x) references...')
-
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
             
@@ -203,13 +175,11 @@ for subdir, dirs, files in os.walk(base_path):
             continue
 
         file = os.path.join(subdir, file)
-        f = open(file, 'r+')
-        
+        f = open(file, 'r+')        
         print("Scanning  File " + f.name)
 
-        d_url = urlparse(downloadUrls[downloadedFiles.index(file)])
-        fromUrl = d_url[0] + "://" + d_url[1] + "/".join(d_url[2].split("/")[:-1]) 
-        content = replace(f.read(), fromUrl, "url\s*\(['\"]*")
+        d_url = downloadedFiles[f.name].split(file)[0]
+        content = replace(f.read(), "url\s*\(['\"]*" + regex, d_url)
 
         f.seek(0)
         f.truncate()
