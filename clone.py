@@ -124,7 +124,6 @@ def download(fromUrl, item):
         return False
 
 downloadedFiles = {}
-downloadUrls = []
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
 
