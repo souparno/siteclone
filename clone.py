@@ -23,17 +23,21 @@ def get(url):
 
     return  urlopen(request, context=ctx)
 
-def getScheme(url):
+def getScheme():
     return urlparse(url)[0] + "://"
 
-def getDomain(url):
-    return getScheme(url) + urlparse(url)[1]
+def getDomain():
+    return getScheme() + urlparse(url)[1]
+
+def getUrl():
+    return getDomain() + urlparse(url)[2]
 
 def getDownloadPath(item):
-    schemes = [domain, "http://", "https://"]
+    schemes = [getDomain(), "http://", "https://"]
     regex = re.compile("|".join(schemes))
     item = re.sub(regex, "", item)
-    return urlparse(item)[2]
+
+    return resolvePath([base_path, urlparse(item)[2]])
 
 #  build the path by removing extra // and resolving relative path
 #  ex: abc//def = abc/def
@@ -48,15 +52,7 @@ def resolvePath(path):
         if path == temp_path:
             break
 
-    #  check if the path containes http or https protocol, if yes, then replace the 
-    #  "/" removed from the pretocol while resolving it
-    prefix = re.match("http:\/|https:\/", temp_path)
-
-    if prefix:
-        prefix = prefix.group(0)
-        temp_path = temp_path.replace(prefix, prefix + "/")
-
-    return temp_path
+    return temp_path.replace(":/", "://")
 
 
 def resources(content, regex):
@@ -103,13 +99,16 @@ def download(fromUrl, item):
     if item.startswith("."):
         item = resolvePath([fromUrl, item])
 
-    if not urlparse(item)[1]:
-        item = resolvePath([domain, item])
+    if not urlparse(item)[1] and item.startswith("/"):
+        item = resolvePath([getDomain(), item])
+
+    if not urlparse(item)[1] and not item.startswith("/"):
+        item = resolvePath([getUrl(), item])
 
     if not urlparse(item)[0]:
-        item = resolvePath([scheme, item])
+        item = resolvePath([getScheme(), item])
 
-    download_path = resolvePath([base_path, getDownloadPath(item)])
+    download_path = getDownloadPath(item)
 
     if download_path in downloadedFiles:
         return download_path
@@ -149,23 +148,25 @@ else:
 if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
-scheme = getScheme(url)
-domain = getDomain(url)
-response = get(url)
 regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
+
+response = get(url)
 content = replace(response.read().decode('utf-8'), regex)
 soup = BeautifulSoup(content, "html.parser")
 
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
-path = resolvePath([base_path, "index.html"])
-downloadedFiles[path] = resolvePath([url, 'index.html'])
 
-file = open(path, "w")
+index_html = resolvePath([getUrl(), "index.html"])
+index_path = getDownloadPath(index_html)
+downloadedFiles[index_path] = index_html
+
+file = open(index_path, "w")
 file.write(content)
 file.close()
 
+print(downloadedFiles)
 
 print('Scanning for CSS based url(x) references...')
 for subdir, dirs, files in os.walk(base_path):
@@ -174,17 +175,16 @@ for subdir, dirs, files in os.walk(base_path):
         if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
             continue
 
-        file = os.path.join(subdir, file)
-        f = open(file, 'r+')        
-        print("Scanning  File " + f.name)
+        print("scanning  file " + os.path.join(subdir, file))
 
-        d_url = downloadedFiles[f.name].split(file)[0]
+        #  d_url = os.path.join(subdir, file).replace(base_path, getDomain())
+        d_url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
+        f = open(os.path.join(subdir, file), 'r+')
         content = replace(f.read(), "url\s*\(['\"]*" + regex, d_url)
 
         f.seek(0)
         f.truncate()
         f.write(content)
         f.close()
-
 
 print("Cloned " + url + " !")
