@@ -166,8 +166,6 @@ file = open(index_path, "w")
 file.write(content)
 file.close()
 
-print(downloadedFiles)
-
 print('Scanning for CSS based url(x) references...')
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
@@ -177,7 +175,6 @@ for subdir, dirs, files in os.walk(base_path):
 
         print("scanning  file " + os.path.join(subdir, file))
 
-        #  d_url = os.path.join(subdir, file).replace(base_path, getDomain())
         d_url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
         f = open(os.path.join(subdir, file), 'r+')
         content = replace(f.read(), "url\s*\(['\"]*" + regex, d_url)
