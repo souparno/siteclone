@@ -136,7 +136,6 @@ else:
 if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
-domain = getDomain(url)
 regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
 content = replace(get(url).read().decode('utf-8'), regex, getUrl(url))
