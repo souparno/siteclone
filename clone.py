@@ -23,17 +23,17 @@ def get(url):
 
     return  urlopen(request, context=ctx)
 
-def getScheme():
+def getScheme(url):
     return urlparse(url)[0] + "://"
 
-def getDomain():
-    return getScheme() + urlparse(url)[1]
+def getDomain(url):
+    return getScheme(url) + urlparse(url)[1]
 
-def getUrl():
-    return getDomain() + urlparse(url)[2]
+def getUrl(url):
+    return getDomain(url) + urlparse(url)[2]
 
 def getDownloadPath(item):
-    schemes = [getDomain(), "http://", "https://"]
+    schemes = [domain, "http://", "https://"]
     regex = re.compile("|".join(schemes))
     item = re.sub(regex, "", item)
 
@@ -62,11 +62,11 @@ def resources(content, regex):
 
     return items
 
-def replace(content, reg, fromUrl = ""):
+def replace(content, reg, fromUrl, overwrite=True):
     for resource in resources(content, reg):
         path = download(fromUrl, re.sub("\\\/", "/", resource))
 
-        if path:
+        if path and overwrite:
             path = path.replace(base_path, "")
             content = content.replace(resource, resolvePath(["/", path]))
 
@@ -74,7 +74,7 @@ def replace(content, reg, fromUrl = ""):
 
 def write(dContent, download_path):
     item_path = download_path.split("/")[:-1]
-    
+
     trail = "./"
 
     for folder in item_path:
@@ -97,13 +97,13 @@ def download(fromUrl, item):
         item = resolvePath([fromUrl, item])
 
     if not urlparse(item)[1] and item.startswith("/"):
-        item = resolvePath([getDomain(), item])
+        item = resolvePath([getDomain(fromUrl), item])
 
     if not urlparse(item)[1] and not item.startswith("/"):
-        item = resolvePath([getUrl(), item])
+        item = resolvePath([getUrl(fromUrl), item])
 
     if not urlparse(item)[0]:
-        item = resolvePath([getScheme(), item])
+        item = resolvePath([getScheme(fromUrl), item])
 
     download_path = getDownloadPath(item)
 
@@ -143,16 +143,16 @@ else:
 if "http://" not in url and "https://" not in url:
     url = "http://" + url
 
+domain = getDomain(url)
 regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
-response = get(url)
-content = replace(response.read().decode('utf-8'), regex)
+content = replace(get(url).read().decode('utf-8'), regex, getUrl(url))
 soup = BeautifulSoup(content, "html.parser")
 
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
-index_html = resolvePath([getUrl(), "index.html"])
+index_html = resolvePath([getUrl(url), "index.html"])
 index_path = getDownloadPath(index_html)
 downloadedFiles[index_path] = index_html
 
@@ -160,10 +160,9 @@ file = open(index_path, "w")
 file.write(content)
 file.close()
 
-print('Scanning for CSS based url(x) references...')
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
-            
+ 
         if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
             continue
 
@@ -171,7 +170,9 @@ for subdir, dirs, files in os.walk(base_path):
 
         d_url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
         f = open(os.path.join(subdir, file), 'r+')
-        content = replace(f.read(), "url\s*\(['\"]*" + regex, d_url)
+        content = f.read()
+        content = replace(content, "url\s*\(['\"]*" + regex, d_url)
+        content = replace(content, "sourceMappingURL=" + regex, d_url, overwrite=False)
 
         f.seek(0)
         f.truncate()
