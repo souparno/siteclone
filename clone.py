@@ -32,13 +32,6 @@ def getDomain(url):
 def getUrl(url):
     return getDomain(url) + urlparse(url)[2]
 
-def getDownloadPath(item):
-    schemes = [domain, "http://", "https://"]
-    regex = re.compile("|".join(schemes))
-    item = re.sub(regex, "", item)
-
-    return resolvePath([base_path, urlparse(item)[2]])
-
 #  build the path by removing extra // and resolving relative path
 #  ex: abc//def = abc/def
 #  and abc/def/../ghi = abc/ghi
@@ -105,7 +98,7 @@ def download(fromUrl, item):
     if not urlparse(item)[0]:
         item = resolvePath([getScheme(fromUrl), item])
 
-    download_path = getDownloadPath(item)
+    download_path = resolvePath([base_path, urlparse(item.replace(getScheme(fromUrl), ""))[2]])
 
     if download_path in downloadedFiles:
         return False
