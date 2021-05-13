@@ -54,7 +54,6 @@ def resolvePath(path):
 
     return temp_path.replace(":/", "://")
 
-
 def resources(content, regex):
     items = []
 
@@ -63,16 +62,15 @@ def resources(content, regex):
 
     return items
 
-
 def replace(content, reg, fromUrl = ""):
     for resource in resources(content, reg):
         path = download(fromUrl, re.sub("\\\/", "/", resource))
 
         if path:
+            path = path.replace(base_path, "")
             content = content.replace(resource, resolvePath(["/", path]))
 
     return content
-
 
 def write(dContent, download_path):
     item_path = download_path.split("/")[:-1]
@@ -92,7 +90,6 @@ def write(dContent, download_path):
 
     download.close()
 
-
 def download(fromUrl, item):
     global downloadedFiles
 
@@ -111,7 +108,7 @@ def download(fromUrl, item):
     download_path = getDownloadPath(item)
 
     if download_path in downloadedFiles:
-        return download_path
+        return False
 
     print("Downloading {} to {}".format(item, download_path))
 
@@ -125,7 +122,6 @@ def download(fromUrl, item):
     except Exception as e:
         print("An error occured: " + str(e.reason))
         return False
-
 
 downloadedFiles = {}
 downloadUrls = []
@@ -156,7 +152,6 @@ soup = BeautifulSoup(content, "html.parser")
 
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
-
 
 index_html = resolvePath([getUrl(), "index.html"])
 index_path = getDownloadPath(index_html)
