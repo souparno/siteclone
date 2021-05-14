@@ -32,20 +32,24 @@ def getDomain(url):
 def getUrl(url):
     return getDomain(url) + urlparse(url)[2]
 
+def getDownloadPath(item):
+    return resolvePath([base_path, urlparse(item)[2]])
+
 #  build the path by removing extra // and resolving relative path
 #  ex: abc//def = abc/def
 #  and abc/def/../ghi = abc/ghi
 def resolvePath(path):
-    temp_path = re.sub("\/\.\/|\/+", "/", "/".join(path))
+    path = re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", "/".join(path))
+    temp_path = re.sub("\/\.\/|\/+|\\\/", "/", path.group(2))
 
     while True:
-        path = temp_path
+        _path = temp_path
         temp_path = re.sub("(^|\/)(?!\.?\.\/)([^\/]+)\/\.\.\/*", "/", temp_path)
 
-        if path == temp_path:
+        if _path == temp_path:
             break
 
-    return temp_path.replace(":/", "://")
+    return (path.group(1) or '')  + temp_path
 
 def resources(content, regex):
     items = []
@@ -57,11 +61,11 @@ def resources(content, regex):
 
 def replace(content, reg, fromUrl, overwrite=True):
     for resource in resources(content, reg):
-        path = download(fromUrl, re.sub("\\\/", "/", resource))
+        path = download(fromUrl, resource)
 
         if path and overwrite:
-            path = path.replace(base_path, "")
-            content = content.replace(resource, resolvePath(["/", path]))
+            path = "/" + path.replace(resolvePath([base_path, "/"]), "")
+            content = content.replace(resource, path)
 
     return content
 
@@ -83,34 +87,33 @@ def write(dContent, download_path):
 
     download.close()
 
-def download(fromUrl, item):
+def download(url, item):
     global downloadedFiles
 
+    item = re.sub("^\/{2,}", getScheme(url), resolvePath([item]))
+
     if item.startswith("."):
-        item = resolvePath([fromUrl, item])
+        item = resolvePath([url, item])
 
     if not urlparse(item)[1] and item.startswith("/"):
-        item = resolvePath([getDomain(fromUrl), item])
+        item = resolvePath([getDomain(url), item])
 
     if not urlparse(item)[1] and not item.startswith("/"):
-        item = resolvePath([getUrl(fromUrl), item])
+        item = resolvePath([getUrl(url), item])
 
-    if not urlparse(item)[0]:
-        item = resolvePath([getScheme(fromUrl), item])
+    path = getDownloadPath(item.replace(getScheme(url), ""))
 
-    download_path = resolvePath([base_path, urlparse(item.replace(getScheme(fromUrl), ""))[2]])
-
-    if download_path in downloadedFiles:
+    if path in downloadedFiles:
         return False
 
-    print("Downloading {} to {}".format(item, download_path))
+    print("Downloading {} to {}".format(item, path))
 
     try:
         dContent = get(quote(item, safe=string.printable))
-        write(dContent, download_path) 
-        downloadedFiles[download_path] = item
+        write(dContent, path) 
+        downloadedFiles[path] = item
         print("Downloaded!")
-        return download_path
+        return path
 
     except Exception as e:
         print("An error occured: " + str(e.reason))
@@ -144,11 +147,11 @@ soup = BeautifulSoup(content, "html.parser")
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
-index_html = resolvePath([getUrl(url), "index.html"])
-index_path = getDownloadPath(index_html)
-downloadedFiles[index_path] = index_html
+item = resolvePath([getUrl(url), "index.html"])
+path = getDownloadPath(item.replace(getScheme(url), ""))
+downloadedFiles[path] = item
 
-file = open(index_path, "w")
+file = open(path, "w")
 file.write(content)
 file.close()
 
@@ -160,11 +163,13 @@ for subdir, dirs, files in os.walk(base_path):
 
         print("scanning  file " + os.path.join(subdir, file))
 
-        d_url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
+        url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
+
         f = open(os.path.join(subdir, file), 'r+')
+
         content = f.read()
-        content = replace(content, "url\s*\(['\"]*" + regex, d_url)
-        content = replace(content, "sourceMappingURL=" + regex, d_url, overwrite=False)
+        content = replace(content, "url\s*\(['\"]*" + regex, url)
+        content = replace(content, "sourceMappingURL=" + regex, url, overwrite=False)
 
         f.seek(0)
         f.truncate()
