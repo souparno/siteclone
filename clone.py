@@ -35,8 +35,11 @@ def getUrl(url):
 def getDownloadPath(item):
     return resolvePath([base_path, urlparse(item)[2]])
 
+def groupUrl(path):
+    return re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", "/".join(path))
+
 def resolvePath(path):
-    path = re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", "/".join(path))
+    path = groupUrl(path)
     temp_path = re.sub("\/\.\/|\/+|\\\/", "/", path.group(2))
 
     while True:
@@ -114,6 +117,28 @@ def download(url, item):
         print("An error occured: " + str(e.reason))
         return False
 
+def downloadFromtextFiles():
+    for subdir, dirs, files in os.walk(base_path):
+        for file in files:
+     
+            if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
+                continue
+
+            print("scanning  file " + os.path.join(subdir, file))
+
+            url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
+
+            f = open(os.path.join(subdir, file), 'r+')
+
+            content = f.read()
+            content = replace(content, "url\s*\(['\"]*" + regex, url)
+            content = replace(content, "sourceMappingURL=" + regex, url, overwrite=False)
+
+            f.seek(0)
+            f.truncate()
+            f.write(content)
+            f.close()
+
 downloadedFiles = {}
 dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
 textFiles = ["css", "js", "html", "php", "json"]
@@ -147,29 +172,7 @@ soup = BeautifulSoup(content, "html.parser")
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
-#  uncomment the line below while debugging
-#  print(downloadedFiles)
-
-for subdir, dirs, files in os.walk(base_path):
-    for file in files:
- 
-        if file == ".DS_Store" or file.split(".")[-1] not in textFiles:
-            continue
-
-        print("scanning  file " + os.path.join(subdir, file))
-
-        url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
-
-        f = open(os.path.join(subdir, file), 'r+')
-
-        content = f.read()
-        content = replace(content, "url\s*\(['\"]*" + regex, url)
-        content = replace(content, "sourceMappingURL=" + regex, url, overwrite=False)
-
-        f.seek(0)
-        f.truncate()
-        f.write(content)
-        f.close()
+downloadFromtextFiles()
 
 f = open(path, 'r+')
 f.seek(0)
