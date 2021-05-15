@@ -27,10 +27,10 @@ def getScheme(url):
     return urlparse(url)[0] + "://"
 
 def getDomain(url):
-    return getScheme(url) + urlparse(url)[1] + "/"
+    return getScheme(url) + urlparse(url)[1]
 
 def getUrl(url):
-    return getDomain(url) + urlparse(url)[2] + "/"
+    return getDomain(url) + urlparse(url)[2]
 
 def getDownloadPath(item):
     return resolvePath([base_path, urlparse(item)[2]])
@@ -89,9 +89,9 @@ def download(url, item):
 
     item = resolvePath([re.sub("^\/{2,}", getScheme(url), item)])
 
-    item = resolvePath([re.sub("^\/{1,1}", getDomain(url), item)])
+    item = resolvePath([re.sub("^\/{1,1}", getDomain(url) + "/", item)])
 
-    item = resolvePath([re.sub("^\.{1,1}", getUrl(url) + ".", item)])
+    item = resolvePath([re.sub("^\.{1,1}", getUrl(url) + "/.", item)])
 
     if not item.startswith("http"):
         item = resolvePath([getUrl(url), item])
@@ -147,6 +147,9 @@ soup = BeautifulSoup(content, "html.parser")
 for link in soup.find_all('a', href=True):
     content = content.replace(link['href'], "#")
 
+#  uncomment the line below while debugging
+#  print(downloadedFiles)
+
 for subdir, dirs, files in os.walk(base_path):
     for file in files:
  
@@ -155,7 +158,7 @@ for subdir, dirs, files in os.walk(base_path):
 
         print("scanning  file " + os.path.join(subdir, file))
 
-        url = downloadedFiles[os.path.join(subdir, file)]
+        url = downloadedFiles[os.path.join(subdir, file)].split(file)[0]
 
         f = open(os.path.join(subdir, file), 'r+')
 
