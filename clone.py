@@ -32,15 +32,30 @@ def getDomain(url):
 def getUrl(url):
     return getDomain(url) + urlparse(url)[2]
 
+def getItem(url, item):
+    item = resolvePath([re.sub("^\/{2,}", getScheme(url), item)])
+
+    item = resolvePath([re.sub("^\/{1,1}", getDomain(url) + "/", item)])
+
+    if not item.startswith("http") or item.startswith("."):
+        item = resolvePath([getUrl(url), item])
+
+    return item
+
 def getDownloadPath(item):
+    item = item.replace(getScheme(url), "")
+
     return resolvePath([base_path, urlparse(item)[2]])
 
 def groupUrl(path):
-    return re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", "/".join(path))
+    return re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", path)
+
+def cleanPath(path):
+    return re.sub("\/\.\/|\/+|\\\/", "/", path)
 
 def resolvePath(path):
-    path = groupUrl(path)
-    temp_path = re.sub("\/\.\/|\/+|\\\/", "/", path.group(2))
+    path = groupUrl("/".join(path))
+    temp_path = cleanPath(path.group(2))
 
     while True:
         _path = temp_path
@@ -90,16 +105,9 @@ def write(content, path):
 def download(url, item):
     global downloadedFiles
 
-    item = resolvePath([re.sub("^\/{2,}", getScheme(url), item)])
+    item = getItem(url, item)
 
-    item = resolvePath([re.sub("^\/{1,1}", getDomain(url) + "/", item)])
-
-    item = resolvePath([re.sub("^\.{1,1}", getUrl(url) + "/.", item)])
-
-    if not item.startswith("http"):
-        item = resolvePath([getUrl(url), item])
-
-    path = getDownloadPath(item.replace(getScheme(url), ""))
+    path = getDownloadPath(item)
 
     if path in downloadedFiles:
         return False
@@ -107,8 +115,8 @@ def download(url, item):
     print("Downloading {} to {}".format(item, path))
 
     try:
-        dContent = get(quote(item, safe=string.printable))
-        write(dContent, path) 
+        content = get(item)
+        write(content, path)
         downloadedFiles[path] = item
         print("Downloaded!")
         return path
@@ -162,7 +170,7 @@ if "http://" not in url and "https://" not in url:
 regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
 item = resolvePath([getUrl(url), "index.html"])
-path = getDownloadPath(item.replace(getScheme(url), ""))
+path = getDownloadPath(item)
 downloadedFiles[path] = item
 write(get(url), path)
 

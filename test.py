@@ -21,7 +21,7 @@ class Mock():
         raise StopIteration
 
 
-with patch.object(sys, 'argv', ['', 'url', 'base_path']):
+with patch.object(sys, 'argv', ['', '', 'base_path']):
 
     with patch('urllib.request.urlopen',  Mock):
 
@@ -48,6 +48,109 @@ class TestClone(unittest.TestCase):
         url = "http://domain.com/foo/bar/demo.html"
         url = clone.getUrl(url)
         self.assertEqual(url, 'http://domain.com/foo/bar/demo.html')
+
+    def test_cleanPath(self):
+        #  clean /// -> /
+        path = clone.cleanPath("demo.foo.co.uk/bar///assets/images/menu.png")
+        self.assertEqual(path, "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  clean /./ -> /
+        path = clone.cleanPath("demo.foo.co.uk/bar/assets/./images/menu.png")
+        self.assertEqual(path, "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  clean \\/ -> /
+        path = clone.cleanPath("demo.foo.co.uk/bar\\/assets/images/menu.png")
+        self.assertEqual(path, "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  clean \/ -> /
+        path = clone.cleanPath("demo.foo.co.uk/bar\/assets/images/menu.png")
+        self.assertEqual(path, "demo.foo.co.uk/bar/assets/images/menu.png")
+
+    def test_groupUrl(self):
+        path = clone.groupUrl("https://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), "https://")
+        self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        path = clone.groupUrl("http://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), "http://")
+        self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        path = clone.groupUrl("//demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), "//")
+        self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        path = clone.groupUrl("/demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), "/")
+        self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        path = clone.groupUrl("demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), None)
+        self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
+
+        path = clone.groupUrl("./demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path.group(1), None)
+        self.assertEqual(path.group(2), "./demo.foo.co.uk/bar/assets/images/menu.png")
+
+    def test_getItem(self):
+        #  import with // from an url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css", "//demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  absolute path import
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css", "/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  relative import from an url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css", "../images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import from same path as the url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets", "images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import https
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets", "https://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import http
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets", "http://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "http://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        # ******* check for the same above but url ends with / ******* #
+
+        #  import with // from an url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css/", "//demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  absolute path import
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css/", "/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  relative import from an url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/css/", "../images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import from same path as the url
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/", "images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import https
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/", "https://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "https://demo.foo.co.uk/bar/assets/images/menu.png")
+
+        #  import http
+        item = clone.getItem("https://demo.foo.co.uk/bar/assets/", "http://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(item, "http://demo.foo.co.uk/bar/assets/images/menu.png")
+
+    def test_getDownloadPath(self):
+        path = clone.getDownloadPath("https://demo.foo.co.uk/bar/assets/images/menu.png")
+        self.assertEqual(path, "base_path/bar/assets/images/menu.png")
+
+        path = clone.getDownloadPath("https://demo.foo.co.uk/bar/assets/images/menu.png?foo=bar")
+        self.assertEqual(path, "base_path/bar/assets/images/menu.png")
+
+        path = clone.getDownloadPath("https://demo.foo.co.uk/bar/assets/images/menu.png#top")
+        self.assertEqual(path, "base_path/bar/assets/images/menu.png")
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
