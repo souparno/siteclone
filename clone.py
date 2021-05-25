@@ -176,9 +176,9 @@ write(get(url), path)
 
 content = replace(get(url).read().decode('utf-8'), regex, getUrl(url))
 
-soup = BeautifulSoup(content, "html.parser")
-for link in soup.find_all('a', href=True):
-    content = content.replace(link['href'], "#")
+#  soup = BeautifulSoup(content, "html.parser")
+#  for link in soup.find_all('a', href=True):
+#      content = content.replace(link['href'], "#")
 
 downloadFromtextFiles()
 
