@@ -79,7 +79,7 @@ def replace(content, reg, fromUrl, overwrite=True):
         path = download(fromUrl, resource)
 
         if path and overwrite:
-            path = "/" + path.replace(resolvePath([base_path, "/"]), "")
+            path = "/" + "/".join(path.split("/")[1:])
             content = content.replace(resource, path)
 
     return content
