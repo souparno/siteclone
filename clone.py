@@ -37,14 +37,14 @@ def getDownloadPath(item):
 
     return resolvePath([base_path, urlparse(item)[2]])
 
-def groupUrl(path):
+def splitUrl(path):
     return re.match("^(https:\/\/|http:\/\/|[\/]+)*(.*)", path)
 
 def cleanPath(path):
     return re.sub("\/\.\/|\/+|\\\/", "/", path)
 
 def resolvePath(path):
-    path = groupUrl("/".join(path))
+    path = splitUrl("/".join(path))
     temp_path = cleanPath(path.group(2))
 
     while True:

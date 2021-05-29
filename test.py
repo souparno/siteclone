@@ -6,7 +6,7 @@ from unittest.mock import patch, mock_open
 
 class Mock():
     def __init__(self, url, headers, proxies):
-        self.content = ""
+        self.text = ""
 
     def __iter__(self):
         return self
@@ -62,28 +62,28 @@ class TestClone(unittest.TestCase):
         path = clone.cleanPath("demo.foo.co.uk/bar\/assets/images/menu.png")
         self.assertEqual(path, "demo.foo.co.uk/bar/assets/images/menu.png")
 
-    def test_groupUrl(self):
-        path = clone.groupUrl("https://demo.foo.co.uk/bar/assets/images/menu.png")
+    def test_splitUrl(self):
+        path = clone.splitUrl("https://demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), "https://")
         self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
 
-        path = clone.groupUrl("http://demo.foo.co.uk/bar/assets/images/menu.png")
+        path = clone.splitUrl("http://demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), "http://")
         self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
 
-        path = clone.groupUrl("//demo.foo.co.uk/bar/assets/images/menu.png")
+        path = clone.splitUrl("//demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), "//")
         self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
 
-        path = clone.groupUrl("/demo.foo.co.uk/bar/assets/images/menu.png")
+        path = clone.splitUrl("/demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), "/")
         self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
 
-        path = clone.groupUrl("demo.foo.co.uk/bar/assets/images/menu.png")
+        path = clone.splitUrl("demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), None)
         self.assertEqual(path.group(2), "demo.foo.co.uk/bar/assets/images/menu.png")
 
-        path = clone.groupUrl("./demo.foo.co.uk/bar/assets/images/menu.png")
+        path = clone.splitUrl("./demo.foo.co.uk/bar/assets/images/menu.png")
         self.assertEqual(path.group(1), None)
         self.assertEqual(path.group(2), "./demo.foo.co.uk/bar/assets/images/menu.png")
 
