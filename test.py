@@ -1,29 +1,23 @@
+from re import split
 import sys
 import unittest
-from urllib.request import urlopen
 from unittest.mock import patch, mock_open
 
 
 class Mock():
-    def __init__(self, request, context):
-        return None
-
-    def read(self):
-        return self
-
-    def decode(self, arg):
-        return ''
+    def __init__(self, url, headers, proxies):
+        self.content = ""
 
     def __iter__(self):
         return self
 
-    def __next__(self):
+    def __next__(self)  :
         raise StopIteration
 
 
 with patch.object(sys, 'argv', ['', '', 'base_path']):
 
-    with patch('urllib.request.urlopen',  Mock):
+    with patch('requests.get',  Mock):
 
         with patch("builtins.open", mock_open(read_data="data")):
 
@@ -35,19 +29,21 @@ class TestClone(unittest.TestCase):
     def test_getUrl(self):
         url = "https://demo.foo.co.uk/bar/\#top"
         url = clone.getUrl(url)
-        self.assertEqual(url, 'https://demo.foo.co.uk/bar/\\')
+        self.assertEqual(url, 'https://demo.foo.co.uk/bar')
 
         url = "https://themes.foo.com/foo/bar/"
         url = clone.getUrl(url)
-        self.assertEqual(url, 'https://themes.foo.com/foo/bar/')
+        self.assertEqual(url, 'https://themes.foo.com/foo/bar')
 
         url = "https://themes.foo.com/foo/bar"
         url = clone.getUrl(url)
         self.assertEqual(url, 'https://themes.foo.com/foo/bar')
 
-        url = "http://domain.com/foo/bar/demo.html"
+        url = "http://domain.com/foo/bar/demo-music.html\#"
         url = clone.getUrl(url)
-        self.assertEqual(url, 'http://domain.com/foo/bar/demo.html')
+        self.assertEqual(url, 'http://domain.com/foo/bar/demo-music.html')
+
+       
 
     def test_cleanPath(self):
         #  clean /// -> /

@@ -1,27 +1,17 @@
 import sys
 import os
-import ssl
 import re
-import socks
-import socket
 import string
-from urllib.request import Request, urlopen
+import requests
 from urllib.parse import quote, urlparse
 from bs4 import BeautifulSoup
 
 def get(url):
-    IP_ADDR = '127.0.0.1'
-    PORT = 9050
+    url = quote(url, safe=string.printable)
+    proxies = dict(http="socks5://127.0.0.1:9050", https="socks5://127.0.0.1:9050")
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
-    request = Request(url)
-    socks.set_default_proxy(socks.SOCKS5, IP_ADDR, PORT)
-    socket.socket = socks.socksocket
-
-    return  urlopen(request, context=ctx)
+    return requests.get(url, headers=headers, proxies=proxies)
 
 def getScheme(url):
     return urlparse(url)[0] + "://"
@@ -30,7 +20,7 @@ def getDomain(url):
     return getScheme(url) + urlparse(url)[1]
 
 def getUrl(url):
-    return getDomain(url) + urlparse(url)[2]
+    return getDomain(url) + "/" + urlparse(url)[2].strip("/\\")
 
 def getItem(url, item):
     item = resolvePath([re.sub("^\/{2,}", getScheme(url), item)])
@@ -169,16 +159,20 @@ if "http://" not in url and "https://" not in url:
 
 regex = "([^=\"'(\s]+)" + str("(" + "|".join(dataTypesToDownload) + ")").replace(".", "\.") + "([^\"')>\s]*)"
 
-item = resolvePath([getUrl(url), "index.html"])
+_file_name = getUrl(url).split("/")[-1] if getUrl(url).endswith(".html") else "index.html"
+_url = getUrl(url).split(_file_name)[0]
+
+item = resolvePath([_url, _file_name])
 path = getDownloadPath(item)
 downloadedFiles[path] = item
 write(get(url), path)
 
-content = replace(get(url).read().decode('utf-8'), regex, getUrl(url))
+content = replace(get(url).text, regex, _url)
 
 #  soup = BeautifulSoup(content, "html.parser")
 #  for link in soup.find_all('a', href=True):
 #      content = content.replace(link['href'], "#")
+#  print(downloadedFiles)
 
 downloadFromtextFiles()
 

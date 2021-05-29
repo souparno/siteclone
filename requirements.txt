@@ -1,3 +1,2 @@
-PySocks
-socks
+requests
 bs4
