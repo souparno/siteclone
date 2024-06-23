@@ -4,14 +4,19 @@ import re
 import string
 import requests
 from urllib.parse import quote, urlparse
-from bs4 import BeautifulSoup
+
+def get_tor_session():
+    session = requests.Session()
+    session.proxies = {
+        'http': 'socks5h://127.0.0.1:9050',
+        'https': 'socks5h://127.0.0.1:9050'
+    }
+    return session
 
 def get(url):
     url = quote(url, safe=string.printable)
-    proxies = dict(http="socks5://127.0.0.1:9050", https="socks5://127.0.0.1:9050")
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
-
-    return requests.get(url, headers=headers, proxies=proxies)
+    return session.get(url, headers=headers)
 
 def getScheme(url):
     return urlparse(url)[0] + "://"
@@ -92,10 +97,30 @@ def write(content, path):
 
     download.close()
 
+def validate_url(url):
+    # List of file extensions to be removed 
+    parsed_url = urlparse(url)
+    
+    # Remove file extensions from the path
+    path_without_extensions = parsed_url.path
+    for extension in dataTypesToDownload:
+        # Use regular expression to remove extension only if it is at the end of the path
+        path_without_extensions = re.sub(re.escape(extension) + r'$', '', path_without_extensions)
+    
+    # Check for invalid characters in the path
+    invalid_chars = set(string.punctuation.replace('/', '').replace('-', '').replace('.', ''))
+    if any(char in invalid_chars for char in path_without_extensions):
+        return False
+    
+    return True
+
 def download(url, item):
     global downloadedFiles
 
     item = getItem(url, item)
+
+    # if not validate_url(item):
+    #     return False
 
     path = getDownloadPath(item)
 
@@ -137,8 +162,9 @@ def downloadFromtextFiles():
             f.write(content)
             f.close()
 
+session = get_tor_session()
 downloadedFiles = {}
-dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4"]
+dataTypesToDownload = [".svg", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".css", ".js", ".html", ".php", ".json", ".ttf", ".otf", ".woff2", ".woff", ".eot", ".mp4", ".ogg"]
 textFiles = ["css", "js", "html", "php", "json"]
 
 if len(sys.argv) == 1:
@@ -168,11 +194,6 @@ downloadedFiles[path] = item
 write(get(url), path)
 
 content = replace(get(url).text, regex, _url)
-
-#  soup = BeautifulSoup(content, "html.parser")
-#  for link in soup.find_all('a', href=True):
-#      content = content.replace(link['href'], "#")
-#  print(downloadedFiles)
 
 downloadFromtextFiles()
 
