@@ -108,7 +108,7 @@ def validate_url(url):
         path_without_extensions = re.sub(re.escape(extension) + r'$', '', path_without_extensions)
     
     # Check for invalid characters in the path
-    invalid_chars = set(string.punctuation.replace('/', '').replace('-', '').replace('.', ''))
+    invalid_chars = set(string.punctuation.replace('/', '').replace('-', '').replace('.', '').replace('_', '').replace('@', ''))
     if any(char in invalid_chars for char in path_without_extensions):
         return False
     
@@ -119,8 +119,9 @@ def download(url, item):
 
     item = getItem(url, item)
 
-    # if not validate_url(item):
-    #     return False
+    if not validate_url(item):
+        print("INVALID URL -------> ", item)
+        return False
 
     path = getDownloadPath(item)
 
